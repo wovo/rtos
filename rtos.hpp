@@ -1,3 +1,5 @@
+/// @file
+
 //**************************************************************************
 //
 // This file contains its own documentation in Doxygen format.
@@ -10,11 +12,11 @@
 ///    - Wouter van Ooijen (wouter@voti.nl)
 ///
 /// \version
-///    V5.00 (2016-06-26)
+///    V5.00 (2016-09-20)
 ///
 /// \if never
 ///    The version is also available as the macro RTOS_VERSION,
-///    don't for get to updata that macro too!
+///    don't for get to update that macro too!
 /// \endif
 ///
 /// \par Introduction
@@ -46,7 +48,7 @@
 #ifndef RTOS_H_
 #define RTOS_H_
 
-#define RTOS_VERSION "V5.00 (2016-05-26)"
+#define RTOS_VERSION "V5.00 (2016-09-20)"
 
 #include "hwlib.hpp"
 #include "coroutine.hpp"
@@ -134,20 +136,6 @@ const unsigned int RTOS_MIN_PRIORITY = 1000;
 //
 //***************************************************************************
 
-// The macro HERE transates to a newline, the file-name, ":", and
-// the line-number of the place where the HERE macro appears.
-// This can be used for debug logging. used by the trace macro.
-#define HERE_STR( X ) #X
-#define HERE2( F, L ) ( "\n" F ":" HERE_STR( L ))
-#define HERE HERE2( __FILE__, __LINE__ )
-
-// Printing to trace (instead of cout) prepends HERE and a space,
-// or trace can be used standalone like 'trace;'
-// #define trace ( std::cout << HERE << " " )
-
-// allocate memory for the string and copy the content
-const char * string_allocate( const char *name );
-
 // the macro RTOS_STATISTICS is used to prefix a single line
 // that will be commented out when statistics is disabled
 #if RTOS_STATISTICS_ENABLED
@@ -157,6 +145,7 @@ const char * string_allocate( const char *name );
 #endif
 
 void task_trampoline();
+
 
 //***************************************************************************
 /// fatal error handler
@@ -290,7 +279,7 @@ private:
    static void do_statistics_clear (void);
 
      /// this is a static class, prevent instantiation
-   rtos( void ) {}
+   rtos() {}
 
       /// the list of callabacks, in no particular order
    static callback * timerList;
@@ -330,13 +319,13 @@ private:
 
 public:
    /// runs the scheduler
-   static void run( void );
+   static void run();
 
    /// returns (a pointer to) the currently executing task
-   static task_base * current_task( void ) { return rtos_current_task; }
+   static task_base * current_task() { return rtos_current_task; }
 
    /// get elapsed time in micro seconds since OS startup
-   static long long int run_time( void );
+   static long long int run_time();
 
    /// prints statistics about the RTOS to the stream.
    static void print( hwlib::ostream & stream );
@@ -345,10 +334,10 @@ public:
    //
    /// The actual clearing will be done later, inside \ref run(),
    /// when the current task has given up the processor.
-   static void statistics_clear( void ) { must_clear = true; }
+   static void statistics_clear() { must_clear = true; }
 
    /// print the statistics collect for the used RTOS objects
-   static void display_statistics( void );
+   static void display_statistics();
    
    //***************************************************************************
    //
@@ -357,12 +346,12 @@ public:
    /// These constants make it easier to specify (interval) times
    ///
    /// \code
-   /// const long long int  s = ( 1000 * 1000 );
-   /// const long long int ms = 1000;
-   /// const long long int us = 1;
+   /// const long long int  s = ...;
+   /// const long long int ms = ...;
+   /// const long long int us = ...;
    /// \endcode
    ///
-   /// Time in the rtos is expressed in som emultiple of microseconds, but
+   /// Time in the rtos is expressed in some multiple of microseconds, but
    /// use these constants to avoid knowledge of this detail.
    //
    //***************************************************************************
@@ -477,7 +466,7 @@ public:
       //
       /// This is automatically doen when the waitable
       /// causes a task::wait() call to return it.
-      virtual void clear( void ) { t->waitables.clear( *this ); }
+      virtual void clear() { t->waitables.clear( *this ); }
 
    protected:
 
@@ -487,7 +476,7 @@ public:
       waitable( task_base * task , const char * name );
 
       /// set the waitable
-      void set ( void ) { t->waitables.set( *this ); }
+      void set () { t->waitables.set( *this ); }
 
       RTOS_STATISTICS( const char * waitable_name; )
 
@@ -534,7 +523,7 @@ public:
 
       /// constructor, specify onwer and name
       //
-      /// This call creates a timer for task t.
+      /// This call creates a flag for task t.
       /// The name is used for debugging and statistics.
       flag( task_base * t, const char * name = "" );
 
@@ -542,7 +531,7 @@ public:
       //
       /// Setting a flag causes the task that waits for this
       /// flag to be awakened.
-      void set ( void );
+      void set ();
 
       /// prints flag infomation (for debugging)
       void print( hwlib::ostream & s, bool header = true ) const;
@@ -583,11 +572,11 @@ private:
          requested_waitables( 0 ),
          used( 0 ) {}
 
-      unsigned int waitable_allocate( void );
+      unsigned int waitable_allocate();
       void set( const waitable &w );
       void clear( const waitable &w );
 
-      event wait( void ) { return wait( ~0 ); }
+      event wait() { return wait( ~0 ); }
       event wait( const waitable & w ) { return wait( w.mask ); }
       event wait( const event & set ) { return wait( set.mask ); }
    };
@@ -607,7 +596,7 @@ private:
       callback( const char * name = "" );
 
       // a timer should never be destroyed
-      ~callback( void ) {
+      ~callback() {
          rtos_fatal ("callback_timer destructor called");
       }
 
@@ -616,15 +605,20 @@ private:
 
    protected:
       // the callback must fire 'time' from now
-      void start( unsigned long int time ) { time_to_wait = time; }
+      void start( unsigned long int time ) { 
+         time_to_wait = time; 
+//HWLIB_TRACE << time_to_wait << " @" << (int)&time_to_wait;         
+      }
 
       // the callback must fire 'time' from the last firing
       void restart( unsigned long int time ) {
-         while( time_to_wait <= 0 ) { time_to_wait += time; }
+         while( time_to_wait <= 0 ) { 
+            time_to_wait += time; 
+         }
       }
 
       // abort a started timer
-      virtual void cancel( void ) { time_to_wait = 0; }
+      virtual void cancel() { time_to_wait = 0; }
 
       RTOS_STATISTICS( const char * object_name; )
 
@@ -632,7 +626,7 @@ private:
       long long int time_to_wait;
 
       // called by the rtos to state that <elapsed> time has elapsed
-      void tick( int elapsed );
+      // void tick( int elapsed );
 
       // for the rtos to link timers in a chain
       callback * nextTimer;
@@ -645,19 +639,19 @@ private:
    //
    // class timer
    //
-   /// one-short timer
+   /// one-shot timer
    //
    /// A (one-shot) timer is a special type of flag, which can be
    /// instructed to set itself after a fixed amount of time.
    /// The amount of time is supplied with the timer::set() call.
    /// This call starts the timer.
-   /// A timer that is running (waiting for its timeout to expire)
-   /// can be canceled by the timer::cancel() call.
+   /// A timer that is running (waiting for its time-out to expire)
+   /// can be cancelled by the timer::cancel() call.
    /// When a timer that is already running is set again the previous
-   /// timeout is overwritten by the new one.
-   /// The suspend/resume state of its owner taks has no effect on
+   /// time-out is overwritten by the new one.
+   /// The suspend/resume state of its owner task has no effect on
    /// a timer: even when the task is suspended the timer will run
-   /// to its timeout and set isetlf.
+   /// to its time-out and set itself.
    /// But of course the task, being suspended, will not be able to react.
    ///
    //************************************************************************
@@ -679,7 +673,7 @@ public:
       //
       /// Stop the timer (when it was running),
       /// and clears its (when it was set).
-      void cancel( void );
+      void cancel();
 
       /// print the timer (for debugging)
       void print( hwlib::ostream & s, bool header = true ) const;
@@ -687,7 +681,7 @@ public:
    private:
       void start( unsigned long int time );
 
-      void time_up( void ) { waitable::set(); }
+      void time_up() { waitable::set(); }
 
       RTOS_STATISTICS( timer * next_timer; )
       RTOS_STATISTICS( unsigned int n_sets; )
@@ -728,16 +722,16 @@ public:
       /// clear the waitable within the clock
       //
       /// Note that this does not stop the clock.
-      void clear( void ) { waitable::clear(); }
+      void clear() { waitable::clear(); }
 
       /// the interval of the clock
-      unsigned long int interval( void ) { return period; }
+      unsigned long int interval() { return period; }
 
       /// print the clock (for debugging)
       void print( hwlib::ostream & s, bool header = true ) const;
 
    private:
-      void time_up( void );
+      void time_up();
       unsigned long int period;
 
       RTOS_STATISTICS( clock * next_clock; )
@@ -803,7 +797,7 @@ public:
    ///          16384  // task stack size
    ///       ){}
    /// private:
-   ///    void main( void ){
+   ///    void main(){
    ///       // put the code of your task here
    ///    }
    /// };
@@ -828,7 +822,7 @@ public:
    ///
    /// #include "rtos.h"
    ///
-   /// int main( void ) {
+   /// int main() {
    ///    rtos::run();
    ///    return 0;
    /// }
@@ -841,7 +835,7 @@ public:
    ///       LED( LED ), period( period ){}
    /// private:
    ///    int LED, period;
-   ///    void main( void ){
+   ///    void main(){
    ///       for( ; ; ) {
    ///          led_set( LED, 1 );
    ///          sleep( period / 2 );
@@ -877,7 +871,7 @@ public:
    /// public:
    ///    unsigned int speaker;
    ///    beeper( unsigned int speaker ): speaker( speaker ){}
-   ///    void main( void ){
+   ///    void main(){
    ///       mkt_pin_configure( speaker, mkt_output);
    ///       for( ; ; ) {
    ///          mkt_pin_write( speaker, 1  );
@@ -890,7 +884,7 @@ public:
    /// beeper speaker( 10 );
    ///
    /// class suspender : public rtos::task {
-   ///    void main( void ){
+   ///    void main(){
    ///       for( int i = 0; i < 5 ; i++ ) {
    ///          speaker.resume();
    ///          sleep( 500 MS );
@@ -981,7 +975,7 @@ public:
       /// to have the rtos serve the timers.
       ///
    public:      
-   virtual void main( void ) = 0;
+   virtual void main() = 0;
 
    public:
 
@@ -1015,7 +1009,7 @@ public:
       /// Can be extended by an application task.
       ///
       /// A concrete task can extend this operation to suit its needs.
-      virtual void suspend( void );
+      virtual void suspend();
 
       /// continue a suspended task
       //
@@ -1023,13 +1017,13 @@ public:
       /// Has no effect when the task is not suspended.
       ///
       /// Can be extended by an application task to suit its needs.
-      virtual void resume( void );
+      virtual void resume();
 
       /// release the CPU to the scheduler
       //
       /// Sevices timers and releases the CPU to a higher
       /// priority task if is ready.
-      void release( void );
+      void release();
 
       /// wait for some time
       //
@@ -1037,19 +1031,19 @@ public:
       void sleep( unsigned int time );
 
       /// report the task priority
-      unsigned int priority( void ) const   { return task_priority; }
+      unsigned int priority() const   { return task_priority; }
 
       /// report the task name
-      const char * name( void ) const;
+      const char * name() const;
 
       /// report whether the task is currently suspended
-      bool is_suspended( void ) const { return task_is_suspended; }
+      bool is_suspended() const { return task_is_suspended; }
 
       /// report whether the task is currently blocked
-      bool is_blocked( void ) const   { return task_is_blocked; }
+      bool is_blocked() const   { return task_is_blocked; }
 
       /// report whether the task is currently ready for execution
-      bool is_ready( void ) const {
+      bool is_ready() const {
          return !( task_is_suspended || task_is_blocked );
       }
 
@@ -1070,7 +1064,7 @@ public:
       ///
       /// It is an error to wait for waitables that have not been created
       /// for this task.
-      event wait( void ) { return waitables.wait(); }
+      event wait() { return waitables.wait(); }
 
       /// wait for a single waitable
       //
@@ -1093,7 +1087,7 @@ public:
       /// with the timing effects of debug logging. But make sure you
       /// don't use it in the 'normal' execution paths, because that would
       /// make the statistics lie to you.
-      void ignore_activation_time( void ) {
+      void ignore_activation_time() {
          ignore_this_activation = true;
       }
 
@@ -1106,16 +1100,16 @@ public:
       timer sleep_timer;      
 
       /// clear statistics of this task
-      void statistics_clear( void ) {
+      void statistics_clear() {
          runtime_max = 0;
          activations = 0;
       }
 
        /// for blocking a task by means of a synchronization mechanism
-      void block( void );
+      void block();
 
       /// for unblocking a task by means of a synchronization mechanism
-      void unblock( void );
+      void unblock();
 
       /// statistics
       int activated;
@@ -1179,7 +1173,7 @@ public:
    class pool_base {
    public:
       pool_base( const char * name );
-      ~pool_base( void ) {
+      ~pool_base() {
          rtos_fatal ("pool destructor called");
       }
       void print( hwlib::ostream & s, bool header = true ) const;
@@ -1217,17 +1211,17 @@ public:
    ///
    /// pool< unsigned int > seconds;
    ///
-   /// void show_time( void ){
+   /// void show_time(){
    ///    unsigned int n = seconds.read();
    ///    std::cout << ( seconds / 60 ) % 60 << ":" << seconds % 60;
    /// }
    ///
    /// class seconds_counter_class : public periodic_task {
-   ///    seconds_counter( void ){
+   ///    seconds_counter(){
    ///       periodic_task::periodic_task( "sec-counter", 10, 1000 MS );
    ///       seconds.write( 0 );
    ///    }
-   ///    void main( void ){
+   ///    void main(){
    ///       for( ; ; ) {
    ///          (void) wait(); // only one thing to wait for
    ///          seconds.write( seconds.read() + 1 );
@@ -1319,7 +1313,7 @@ public:
       /// generates an error
       //
       /// A mutex should never be destroyed
-      ~mutex( void );
+      ~mutex();
 
       /// prints a mutex, for debugging only.
       void print( hwlib::ostream & stream, bool header = true ) const;
@@ -1373,7 +1367,7 @@ public:
    public:
       mailbox_base( const char * name );
 
-      ~mailbox_base( void ) {
+      ~mailbox_base() {
          rtos_fatal ("mailbox destructor called");
       }
 
@@ -1496,7 +1490,7 @@ public:
 public:
    class channel_base : public waitable {
    public:
-      ~channel_base( void ) {
+      ~channel_base() {
          rtos_fatal ("channel destructor called");
       }
 
@@ -1561,7 +1555,7 @@ public:
    /// public:
    ///    channel< char, 2048 > buffer( this, "buffer" );
    ///    timer hartbeat( this, "hartbeat" );
-   ///    void main( void ){
+   ///    void main(){
    ///       for( ; ; ) {
    ///          wait( buffer );
    ///          cout << buffer.get();
@@ -1608,7 +1602,7 @@ public:
       }
 
       /// read an item from the queue
-      T read( void ) {
+      T read() {
          if( qSize == 0 ) {
             t->wait( *this );
          }

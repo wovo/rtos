@@ -1,19 +1,23 @@
+/// @file
+
 #ifndef coroutine_H
 #define coroutine_H
 
+#include <cstdint>
+#include "hwlib.hpp"
 #include "switch_to.hpp"
 
-template< int N = 0 > class coroutine;
+template< int32_t N = 0 > class coroutine;
 
 class coroutine_context {
-   friend class coroutine<0>;   
+   friend class coroutine< 0 >;   
    
    // a place to store the SP of the main 'couroutine'
-   static int main_sp;      
+   static int32_t main_sp;      
    
    // pointer to the SP of the currently running coroutine
    // Initially it points to a the main_sp
-   static int * current_coroutine_sp_ptr;    
+   static int32_t * current_coroutine_sp_ptr;    
 };
 
 /// coroutine class
@@ -22,42 +26,43 @@ class coroutine_context {
 /// that can pass execution to another coroutine by calling resume() on
 /// that coroutine. 
 /// This can be used as the basis for a co-operative multithreading system.
-template<> class coroutine<0> {
+template<> class coroutine< 0 > {
 private:
 
    // place to store the SP of this coroutine when it is suspended
-   int sp;
+   int32_t sp;
    
    // pointer to the stack area used by this coroutine
-   int * stack;
+   int32_t * stack;
    
    // size of *stack in integers
-   const int int_stack_size;
+   const size_t int_stack_size;
    
    // marker for unused stack locations
-   static const int marker = 0xDEADBEEF;
+   static const int32_t marker = 0xDEADBEEF;
    
 public:
 
    /// the size (in bytes) of the stack allocated for this coroutine
-   const int stack_size;   
+   const size_t stack_size;   
 
 protected:   
 
-   coroutine( void body( void ), int * stack, int int_stack_size ): 
+   coroutine( void body( void ), int32_t * stack, size_t int_stack_size ): 
       stack( stack ),
       int_stack_size( int_stack_size ),
       stack_size( 4 * int_stack_size )
    {  
+   
       // fill all stack locations with the marker
-      for( int i = 0; i < int_stack_size; i++ ){
+      for( size_t i = 0; i < int_stack_size; ++i ){
          stack[ i ] = marker;
       }
       
       // create a 'fake' initial Cortex stack frame,
       // compatible with the switch_to.asm code
-      stack[ int_stack_size - 1 ] = (int) body;
-      sp = reinterpret_cast<int>( & stack[ int_stack_size - 10 ] );      
+      stack[ int_stack_size - 1 ] = reinterpret_cast< int32_t >( body );
+      sp = reinterpret_cast< int32_t >( & stack[ int_stack_size - 10 ] );      
    }   
      
 public:
@@ -124,21 +129,21 @@ public:
 
 };
 
-template< int N > class coroutine : public coroutine<> {
+template< int32_t N > class coroutine : public coroutine<> {
 private:
 
    // convert N to a number of integers, round up
-   static const int int_stack_size = ( N + 3 ) / 4;
+   static const size_t int_stack_size = ( N + 3 ) / 4;
    
    // the room for the stack
-   int stack[ int_stack_size ];
+   int32_t stack[ int_stack_size ];
    
 public:
 
    /// construct a coroutine from its stack size and main function
    //
    /// This constructor creates a coroutine from its stack size
-   /// (this is the template parameter, in bytes, the default is 8K),
+   /// (this is the template parameter, in bytes),
    /// and a function that is its body.
    /// The body function must not return.
    coroutine( void body( void ) ):

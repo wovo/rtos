@@ -16,5 +16,5 @@
 
 SEARCH            += $(RTOS)
 
-SOURCES           += swtich_to_asm.asm coroutine.cpp rtos.cpp
-HEADERS           += switch_to_asm.hpp coroutine.hpp rtos.hpp
+SOURCES           += switch_to.asm coroutine.cpp rtos.cpp
+HEADERS           += switch_to.hpp coroutine.hpp rtos.hpp

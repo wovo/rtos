@@ -1,5 +1,9 @@
+/// @file
+
 #ifndef _switch_to_
 #define _switch_to_
+
+#include <cstdint>
 
 /// Switch from the current execution context to a next one.
 //
@@ -12,8 +16,8 @@
 /// The initial stack of a context must be constructed
 /// to be compatible with the switching code (file swicth_to.asm).
 extern "C" void switch_from_to( 
-   int *store_old_sp, 
-   int next_sp 
+   int32_t *store_old_sp, 
+   int32_t next_sp 
 );
 
 #endif

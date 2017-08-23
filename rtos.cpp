@@ -12,8 +12,8 @@
 #include "switch_to.hpp"
 #include <stdlib.h>
 
-#define task_logging          (global_logging && 0)
-#define debug_task_logging    (global_logging && 0)
+#define task_logging          (global_logging && 1)
+#define debug_task_logging    (global_logging && 1)
 #define hartbeat_logging      (global_logging && 0)
 
 #define TASK_STATE( task ) \
@@ -98,33 +98,25 @@ rtos::task_base::task_base(
 {
 
    RTOS_STATISTICS( task_name = string_allocate( tname ); )
-   
-#if ( debug_task_logging == 1 )
-   HWLIB_TRACE
-      << name()
-      << " S_size=" << cor.stack_size
-      << " S_used=" << cor.stack_used()
-      << "\n";
-#endif
    ignore_this_activation = true;
    statistics_clear();
    rtos::add( this );
    task_trace << "CREATED";
 }
 
-void rtos::task_base::suspend( void ) {
+void rtos::task_base::suspend() {
    task_trace << "suspend";
    task_is_suspended = true;
    release();
 }
 
-void rtos::task_base::resume( void ) {
+void rtos::task_base::resume() {
    task_trace << "resume";
    task_is_suspended = false;
    release();
 }
 
-void rtos::task_base::unblock( void ) {
+void rtos::task_base::unblock() {
    if( ! rtos::scheduler_running ) {
       return;
    }
@@ -133,7 +125,7 @@ void rtos::task_base::unblock( void ) {
    release();
 }
 
-void rtos::task_base::block( void ) {
+void rtos::task_base::block() {
    if( ! rtos::scheduler_running ) {
       return;
    }
@@ -152,25 +144,24 @@ void rtos::task_base::block( void ) {
    release();
 }
 
-void rtos::task_base::release( void ) {
-   task_trace << "release";   
-   
+void rtos::task_base::release() {
    if( ! rtos::scheduler_running ) {
+      task_trace << "scheduler not running";        
       return;
    }
 
-   //if( mainFiberRunning ) {
-   //   // the RTOS scheduler should not call release, only tasks should
-   //   rtos_fatal ("scheduler calls release!?");
-   //}
-
-   // resume the main thread
+   task_trace << "release";   
+   
+   // resume the main thread, 
+   // which handles switching to another task
    cor.resume_main();
 }
 
 void rtos::task_base::sleep( unsigned int time ) {
    sleep_timer.start( time );
+//HWLIB_TRACE;   
    wait( sleep_timer );
+//HWLIB_TRACE;   
 }
 
 void rtos::task_base::print( hwlib::ostream & stream, bool header ) const {
@@ -182,8 +173,8 @@ void rtos::task_base::print( hwlib::ostream & stream, bool header ) const {
          << hwlib::setw(  6 ) << hwlib::right << "prio"
          << hwlib::setw(  5 ) << hwlib::right << "stat"
          << hwlib::setw( 11 ) << hwlib::right << "stack u/m"
-         << hwlib::setw( 10 ) << hwlib::right << "rt_max"
-         << hwlib::setw( 10 ) << hwlib::right << "active"
+         << hwlib::setw( 12 ) << hwlib::right << "rt_max (us)"
+         << hwlib::setw( 11 ) << hwlib::right << "active"
          << "\n";
    }
    stream
@@ -194,8 +185,8 @@ void rtos::task_base::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw(  6 ) << hwlib::right << cor.stack_used()
       << '/'
       << hwlib::setw(  5 ) << hwlib::left  << cor.stack_size
-      << hwlib::setw(  9 ) << hwlib::right << runtime_max
-      << hwlib::setw( 10 ) << hwlib::right << activations
+      << hwlib::setw( 11 ) << hwlib::right << ( runtime_max / us )
+      << hwlib::setw( 11 ) << hwlib::right << activations
       << "\n";
 #endif
 }
@@ -271,7 +262,7 @@ rtos::flag::flag( task_base * t, const char * name ):
    RTOS_STATISTICS( rtos::add( this ); )
 }
 
-void rtos::flag::set( void ) {
+void rtos::flag::set() {
    RTOS_STATISTICS( n_sets++; )
    waitable::set();
 }
@@ -283,8 +274,8 @@ void rtos::flag::print( hwlib::ostream & stream, bool header ) const {
          << hwlib::setw( 18 ) << hwlib::left  << "flag name"
          << hwlib::setw( 18 ) << hwlib::left  << "client"
          << hwlib::setw(  2 ) << hwlib::right << "fn"
-         << hwlib::setw( 10 ) << hwlib::right << "sets"
-         << hwlib::setw( 10 ) << hwlib::right << "gets"
+         << hwlib::setw( 12 ) << hwlib::right << "sets"
+         << hwlib::setw( 11 ) << hwlib::right << "gets"
          << "\n";
    }
    stream 
@@ -292,8 +283,8 @@ void rtos::flag::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw( 18 ) << hwlib::left  << waitable_name
       << hwlib::setw( 18 ) << hwlib::left  << TASK_NAME( t )
       << hwlib::setw(  2 ) << hwlib::right << nr_from_mask( mask )
-      << hwlib::setw( 10 ) << hwlib::right << n_sets
-      << hwlib::setw( 10 ) << hwlib::right << n_gets
+      << hwlib::setw( 12 ) << hwlib::right << n_sets
+      << hwlib::setw( 11 ) << hwlib::right << n_gets
       << "\n";
 #endif
 }
@@ -320,7 +311,7 @@ void rtos::timer::set( unsigned long int time ) {
    rtos::callback::start( time );
 }
 
-void rtos::timer::cancel( void ) {
+void rtos::timer::cancel() {
    RTOS_STATISTICS( n_cancels++; )
    rtos::callback::cancel();
    rtos::waitable::clear();
@@ -339,8 +330,8 @@ void rtos::timer::print( hwlib::ostream & stream, bool header ) const {
          << hwlib::setw( 18 ) << hwlib::left  << "timer name"
          << hwlib::setw( 18 ) << hwlib::left  << "client"
          << hwlib::setw(  2 ) << hwlib::right << "fn"
-         << hwlib::setw( 10 ) << hwlib::right << "sets"
-         << hwlib::setw( 10 ) << hwlib::right << "cancels"
+         << hwlib::setw( 12 ) << hwlib::right << "sets"
+         << hwlib::setw( 11 ) << hwlib::right << "cancels"
          << "\n";
    }
    stream 
@@ -348,8 +339,8 @@ void rtos::timer::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw( 18 ) << hwlib::left  << waitable_name
       << hwlib::setw( 18 ) << hwlib::left  << TASK_NAME( t )
       << hwlib::setw(  2 ) << hwlib::right << nr_from_mask( mask )
-      << hwlib::setw( 10 ) << hwlib::right << n_sets
-      << hwlib::setw( 10 ) << hwlib::right << n_cancels
+      << hwlib::setw( 12 ) << hwlib::right << n_sets
+      << hwlib::setw( 11 ) << hwlib::right << n_cancels
       << "\n";
 #endif
 }
@@ -376,7 +367,7 @@ rtos::clock::clock(
    RTOS_STATISTICS( rtos::add( this ); )
 }
 
-void rtos::clock::time_up( void ) {
+void rtos::clock::time_up() {
    RTOS_STATISTICS( ticks++; )
    callback::restart( period );
    waitable::set();
@@ -390,8 +381,8 @@ void rtos::clock::print( hwlib::ostream & stream, bool header ) const {
          << hwlib::setw( 18 ) << hwlib::left  << "clock name"
          << hwlib::setw( 18 ) << hwlib::left  << "client"
          << hwlib::setw(  2 ) << hwlib::right << "fn"
-         << hwlib::setw( 10 ) << hwlib::right << "period"
-         << hwlib::setw( 10 ) << hwlib::right << "ticks"
+         << hwlib::setw( 12 ) << hwlib::right << "period (us)"
+         << hwlib::setw( 11 ) << hwlib::right << "ticks"
          << "\n";
    }
    stream 
@@ -399,8 +390,8 @@ void rtos::clock::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw( 18 ) << hwlib::left  << waitable_name
       << hwlib::setw( 18 ) << hwlib::left  << TASK_NAME( t )
       << hwlib::setw(  2 ) << hwlib::right << nr_from_mask( mask )
-      << hwlib::setw( 10 ) << hwlib::right << period
-      << hwlib::setw( 10 ) << hwlib::right << ticks
+      << hwlib::setw( 12 ) << hwlib::right << ( period / us )
+      << hwlib::setw( 11 ) << hwlib::right << ticks
       << "\n";
 #endif
 }
@@ -420,6 +411,9 @@ unsigned int rtos::waitable_set :: waitable_allocate( void ) {
 
 void rtos::waitable_set::set ( const waitable &w ) {
 
+//HWLIB_TRACE << current_waitables << " |= " << w.mask;
+//HWLIB_TRACE << *w.t;
+
    // set the waitable bit
    current_waitables |= w.mask;
 
@@ -429,17 +423,26 @@ void rtos::waitable_set::set ( const waitable &w ) {
    }
 }
 
-void rtos::waitable_set::clear( const waitable &w ) {
+void rtos::waitable_set::clear( const waitable & w ) {
+//HWLIB_TRACE << current_waitables << " &=~ " << w.mask;
+//HWLIB_TRACE << *w.t;
+
    current_waitables &= ~ w.mask;
 }
 
 rtos::event rtos::waitable_set::wait ( unsigned int mask ) {
-
+//HWLIB_TRACE << hwlib::hex << mask;
+//HWLIB_TRACE << *client;
+//HWLIB_TRACE << hwlib::hex << current_waitables;
    for( ; ; ) {
       // try to find a waitable for which we are waiting
       for (unsigned int i = 0 ; i < used; i++) {
          if( current_waitables & mask & ( 1U << i )) {
+            
             // clear the waitable
+//HWLIB_TRACE << current_waitables << " &=~ " << (1U << i);
+//HWLIB_TRACE << *client;
+            
             current_waitables &= ~(1U << i);
 
 #if RTOS_STATISTICS_ENABLED
@@ -451,11 +454,12 @@ rtos::event rtos::waitable_set::wait ( unsigned int mask ) {
                 }
             }
 #endif
+//HWLIB_TRACE;
             // return an event for the waitable
             return event( client, 1U << i );
          }
       }
-
+//HWLIB_TRACE;
       // no waitable found? wait for better times..
       requested_waitables = mask;
       client->block();
@@ -528,8 +532,8 @@ void rtos::mutex::print( hwlib::ostream & stream, bool header ) const {
       stream << hwlib::setfill( ' ' )
          << hwlib::setw( 18 ) << hwlib::left  << "mutex name"
          << hwlib::setw( 19 ) << hwlib::left  << "owner"
-         << hwlib::setw( 11 ) << hwlib::right << "waits"
-         << hwlib::setw( 10 ) << hwlib::right << "waiters"
+         << hwlib::setw( 13 ) << hwlib::right << "waits"
+         << hwlib::setw( 11 ) << hwlib::right << "waiters"
          << "\n";
    }
    stream << hwlib::setw ( 18 ) << hwlib::left  << mutex_name;
@@ -541,8 +545,8 @@ void rtos::mutex::print( hwlib::ostream & stream, bool header ) const {
    }
    stream 
       << hwlib::dec
-      << hwlib::setw( 11 ) << hwlib::right  << wait_count
-      << hwlib::setw(  5 ) << hwlib::right << "[ ";
+      << hwlib::setw( 13 ) << hwlib::right  << wait_count
+      << hwlib::setw(  6 ) << hwlib::right << "[ ";
    if (waiters == nullptr)
       stream << '-';
    for( task_base *t = waiters; t != nullptr; t = t->next_mutex_waiter ) {
@@ -565,7 +569,7 @@ rtos::mutex::~mutex( void ) {
 //***************************************************************************
 
 rtos::callback::callback( const char * name ) :
-    time_to_wait (0)
+    time_to_wait( -1 )
 {
    RTOS_STATISTICS( object_name = string_allocate( name ); )
    rtos::add( this );
@@ -600,8 +604,8 @@ void rtos::channel_base::print( hwlib::ostream & stream, bool header ) const {
          << hwlib::setw( 18 ) << hwlib::left  << "channel name"
          << hwlib::setw( 18 ) << hwlib::left  << "owner"
          << hwlib::setw(  2 ) << hwlib::right << "fn"
-         << hwlib::setw( 10 ) << hwlib::right << "writes"
-         << hwlib::setw( 10 ) << hwlib::right << "ignores"
+         << hwlib::setw( 12 ) << hwlib::right << "writes"
+         << hwlib::setw( 11 ) << hwlib::right << "ignores"
          << hwlib::setw(  8 ) << hwlib::right << "queued"
          << "\n";
    }
@@ -610,8 +614,8 @@ void rtos::channel_base::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw( 18 ) << hwlib::left  << channel_name
       << hwlib::setw( 18 ) << hwlib::left  << t->task_name
       << hwlib::setw(  2 ) << hwlib::right << nr_from_mask( mask )
-      << hwlib::setw( 10 ) << hwlib::right << writes
-      << hwlib::setw( 10 ) << hwlib::right << ignores
+      << hwlib::setw( 12 ) << hwlib::right << writes
+      << hwlib::setw( 11 ) << hwlib::right << ignores
       << hwlib::setw(  8 ) << hwlib::right << qSize
       << "\n";
 #endif
@@ -822,14 +826,14 @@ void rtos::print( hwlib::ostream & stream ) {
    // global info
    stream << "\n\nRTOS version    : " 
       << RTOS_VERSION << "\n";
-   stream << "HEAP free       : " 
-      << hwlib::dec << bmptk_heap_free() 
-         << " (" << hwlib::dec << bmptk_heap_used() 
-         << " used of " << bmptk_heap_size() << ")\n";
-   stream << "MAIN STACK free : " 
-      << hwlib::dec << bmptk_stack_free() 
-         << " (" << bmptk_stack_free() 
-         << " used of " << bmptk_stack_size() << ")\n";
+//   if(0) stream << "HEAP free       : " 
+//      << hwlib::dec << bmptk_heap_free() 
+//         << " (" << hwlib::dec << bmptk_heap_used() 
+//         << " used of " << bmptk_heap_size() << ")\n";
+//   if(0)stream << "MAIN STACK free : " 
+//      << hwlib::dec << bmptk_stack_free() 
+//         << " (" << bmptk_stack_used() 
+//         << " used of " << bmptk_stack_size() << ")\n";
 
 #if RTOS_STATISTICS_ENABLED
    bool header;
@@ -932,11 +936,15 @@ void rtos::print( hwlib::ostream & stream ) {
 long long int last_run_time = 0;
 
 void rtos::beat( void ) {
+   
+//HWLIB_TRACE;     
 
    // get the elapse time since last beat, and reset it to 0
    auto new_run_time = rtos::run_time();
    auto elapsed = new_run_time - last_run_time;
    last_run_time = new_run_time;
+   
+//HWLIB_TRACE;   
 
    if (elapsed > 0) {
       // service the callback timer queue
@@ -945,11 +953,15 @@ void rtos::beat( void ) {
          HWLIB_TRACE
             RTOS_STATISTICS( << t->object_name )
             << "@" << hwlib::hex << (int) t << hwlib::dec
-            << " ttw=" << t->time_to_wait;
+            << " ttw=" << t->time_to_wait
+            << " elapsed=" << elapsed ;
 #endif
          if( t->time_to_wait >= 0 ) {
             t->time_to_wait -= elapsed;
-            if( t->time_to_wait <= 0 ) {
+            if( t->time_to_wait < 0 ) {
+#if ( hartbeat_logging == 1 )
+         HWLIB_TRACE << "time up!";
+#endif         
                t->time_up();
             }
          }
@@ -1033,10 +1045,10 @@ void rtos::beat( void ) {
 }
 
 long long int rtos::run_time( void ){
-   return hwlib::now_ticks();
+   return hwlib::now_us();
 }
 
-void rtos::run() {
+void rtos::run( void ) {
    
    // initialize the timing
    (void)run_time();
@@ -1047,11 +1059,15 @@ void rtos::run() {
 #if ( global_logging == 1 )
    hwlib::cout << "Scheduler starts" << "\n";
 #endif
+//HWLIB_TRACE;  
    scheduler_running = true;
+//HWLIB_TRACE;   
    rtos_current_task = nullptr;
+//HWLIB_TRACE;   
 #if ( hartbeat_logging == 1 )   
    int n = 0;
 #endif
+//HWLIB_TRACE; 
    for( ; ; ) {
 #if ( hartbeat_logging == 1 )
       if ( ++n > 10000 ) {
@@ -1059,6 +1075,7 @@ void rtos::run() {
          n = 0;
       }
 #endif
+//HWLIB_TRACE;  
       beat();
    }
 }
@@ -1138,9 +1155,8 @@ void wait_us( int_fast32_t n ){
       rtos::current_task()->sleep( n * rtos::us );
    } else {
 //HWLIB_TRACE;
-      auto t = now_ticks();
-      t += n * ticks_per_us;
-      while( now_ticks() < t ){}  
+      auto t = now_us() + n;
+      while( now_us() < t ){}  
    } 
 }
 
