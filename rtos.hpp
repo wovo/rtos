@@ -722,7 +722,17 @@ public:
       void clear() { waitable::clear(); }
 
       /// the interval of the clock
-      unsigned long int interval() { return period; }
+      unsigned long int interval() { 
+	     return period; 
+      }
+	  
+	  /// change the interval
+	  //
+	  /// Changing the interval affects future intervals: it doesn't
+	  /// change the current interval.
+	  void interval_set( unsigned long n ){
+         period = n;
+      }		 
 
       /// print the clock (for debugging)
       void print( hwlib::ostream & s, bool header = true ) const;
