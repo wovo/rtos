@@ -12,8 +12,8 @@
 #include "switch_to.hpp"
 #include <stdlib.h>
 
-#define task_logging          (global_logging && 1)
-#define debug_task_logging    (global_logging && 1)
+#define task_logging          (global_logging && 0)
+#define debug_task_logging    (global_logging && 0)
 #define hartbeat_logging      (global_logging && 0)
 
 #define TASK_STATE( task ) \
@@ -54,9 +54,9 @@ const char * string_allocate( const char * str ) {
    int len = strlen( str );
    if( len > 16 ) len = 16;
    // should be: new char[ len + 1 ]; //(char *) malloc( 1 + len);
-   char * result = (char *) malloc( 1 + len); 
+   char * result = (char *) malloc( 1 + len ); 
    strcpy( result, str );
-   result[len] = '\0';
+   result[ len ] = '\0';
    return result;
 }
 
@@ -155,13 +155,6 @@ void rtos::task_base::release() {
    // resume the main thread, 
    // which handles switching to another task
    cor.resume_main();
-}
-
-void rtos::task_base::sleep( unsigned int time ) {
-   sleep_timer.start( time );
-//HWLIB_TRACE;   
-   wait( sleep_timer );
-//HWLIB_TRACE;   
 }
 
 void rtos::task_base::print( hwlib::ostream & stream, bool header ) const {
@@ -940,7 +933,7 @@ void rtos::beat( void ) {
 //HWLIB_TRACE;     
 
    // get the elapse time since last beat, and reset it to 0
-   auto new_run_time = rtos::run_time();
+   auto new_run_time = hwlib::now_us();
    auto elapsed = new_run_time - last_run_time;
    last_run_time = new_run_time;
    
@@ -983,18 +976,18 @@ void rtos::beat( void ) {
             << "\n";
 #endif
 
-         auto start = rtos::run_time();
+         auto start = hwlib::now_us();
          rtos_current_task->cor.resume();
-         auto end = rtos::run_time();
+         auto end = hwlib::now_us();
 
 #if ( hartbeat_logging == 1 )
          HWLIB_TRACE << "back from " << rtos_current_task->name() << "\n";
 #endif
 
          unsigned long int runtime = end - start;
-         if( !rtos_current_task->ignore_this_activation ) {
+         if( !rtos_current_task->ignore_this_activation ){
             if (rtos_current_task->activations > 1 &&
-                runtime > rtos_current_task->runtime_max) {
+                runtime > rtos_current_task->runtime_max ){
                rtos_current_task->runtime_max = runtime;
             }
          }
@@ -1044,14 +1037,10 @@ void rtos::beat( void ) {
 #endif
 }
 
-long long int rtos::run_time( void ){
-   return hwlib::now_us();
-}
-
 void rtos::run( void ) {
    
    // initialize the timing
-   (void)run_time();
+   (void)hwlib::now_us();
 
    // Show initial statistics
    print( hwlib::cout );
@@ -1146,17 +1135,15 @@ void rtos::display_statistics( void ) {
 namespace hwlib {
 
 void wait_ns( int_fast32_t n ){
+   // round up to us	
    wait_us( ( n + 999 ) / 1000 );
 }
 
 void wait_us( int_fast32_t n ){   
-   if( rtos::scheduler_running ){
-//HWLIB_TRACE;      
-      rtos::current_task()->sleep( n * rtos::us );
+   if( rtos::scheduler_running ){     
+      rtos::current_task()->sleep_us( n );   
    } else {
-//HWLIB_TRACE;
-      auto t = now_us() + n;
-      while( now_us() < t ){}  
+      hwlib::wait_us_busy( n ); 
    } 
 }
 

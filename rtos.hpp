@@ -324,9 +324,6 @@ public:
    /// returns (a pointer to) the currently executing task
    static task_base * current_task() { return rtos_current_task; }
 
-   /// get elapsed time in micro seconds since OS startup
-   static long long int run_time();
-
    /// prints statistics about the RTOS to the stream.
    static void print( hwlib::ostream & stream );
 
@@ -1025,11 +1022,6 @@ public:
       /// priority task if is ready.
       void release();
 
-      /// wait for some time
-      //
-      /// Sleeps the task (prevents execution) for the indicated time.
-      void sleep( unsigned int time );
-
       /// report the task priority
       unsigned int priority() const   { return task_priority; }
 
@@ -1093,11 +1085,19 @@ public:
 
    private:
 
-     /// waitables on which the task can wait
+      // waitables on which the task can wait
       waitable_set waitables;
       
       // timer for sleep() call
       timer sleep_timer;      
+      
+      // wait_us must call sleep_us
+      friend void hwlib::wait_us( int_fast32_t n );
+      
+      void sleep_us( int_fast32_t n ){
+         sleep_timer.start( n );
+         wait( sleep_timer );       
+      }
 
       /// clear statistics of this task
       void statistics_clear() {
@@ -1105,26 +1105,26 @@ public:
          activations = 0;
       }
 
-       /// for blocking a task by means of a synchronization mechanism
+       // for blocking a task by means of a synchronization mechanism
       void block();
 
-      /// for unblocking a task by means of a synchronization mechanism
+      // for unblocking a task by means of a synchronization mechanism
       void unblock();
 
-      /// statistics
+      // statistics
       int activated;
       int latency_max;
       unsigned long int runtime_max;
       int activations;
       bool ignore_this_activation;
 
-      /// for debugging
+      // for debugging
       void debug( const char * msg );
 
-      /// for the rtos to link all tasks
+      // for the rtos to link all tasks
       task_base * nextTask;
 
-      /// for the mutexes to link waiting tasks
+      // for the mutexes to link waiting tasks
       task_base * next_mutex_waiter;
 
       friend class periodic_task;
