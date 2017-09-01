@@ -5,14 +5,14 @@
 // This file contains its own documentation in Doxygen format.
 // After running doxygen: open the index.html file.
 //
-/// Coroutine-based tasking service with synchronisation mechanisms
+/// Cooperative tasking library with synchronisation mechanisms
 ///
 /// \authors
 ///    - Marten Wensink (marten.wensink@hu.nl)
 ///    - Wouter van Ooijen (wouter@voti.nl)
 ///
 /// \version
-///    V5.00 (2016-09-20)
+///    V6.00 (2017-08-29)
 ///
 /// \if never
 ///    The version is also available as the macro RTOS_VERSION,
@@ -21,26 +21,23 @@
 ///
 /// \par Introduction
 ///
-/// This RTOS provides a simple coroutine-based tasking service (RTOS)
+/// This rtos provides a cooperative (non-preemptive) tasking service
 /// for use on the Arduino Due.
 /// It provides synchronization mechanisms like clocks, timers, semaphores,
 /// flags, queues and mutexes.
-///
-/// This RTOS (Real Time Operating Stystem) is used by the courses V2RTSP1
-/// (Realtime System Programming) and V2TH06
-/// (Themaopdracht 6 Technische Informatica).
-///
-/// The RTOS consists of the files rtos.hpp and rtos.cpp and the file
-/// libfiber.h and libfiber.cpp for the implementation of coroutines.
-/// It is meant to be compiled using bmprk.
+/// It uses hwlib and replaces the hwlib waiting functions.
 ///
 /// Whenever this documentation states that something is or produces an
-/// error this means that rtos_fatal will be called, which will
-/// show the error on stdout and terminate the process.
+/// error this means that fatal() will be called, which by default will
+/// show the error on hwlib::cout and terminate the process.
 ///
 /// \par Files
 /// - rtos.hpp
 /// - rtos.cpp
+/// - coroutine.hpp
+/// - coroutine.cpp
+/// - switch_to.hpp
+/// - switch_to.asm
 ///
 //
 //***************************************************************************
@@ -48,7 +45,7 @@
 #ifndef RTOS_H_
 #define RTOS_H_
 
-#define RTOS_VERSION "V5.00 (2016-09-20)"
+#define RTOS_VERSION "V6.00 (2017-08-29)"
 
 #include "hwlib.hpp"
 #include "coroutine.hpp"
@@ -91,7 +88,7 @@
 //
 //***************************************************************************
 
-#define global_logging 1
+#define global_logging 0
 
 #define RTOS_STATISTICS_ENABLED 1
 
@@ -336,27 +333,6 @@ public:
    /// print the statistics collect for the used RTOS objects
    static void display_statistics();
    
-   //***************************************************************************
-   //
-   /// \page units Units
-   ///
-   /// These constants make it easier to specify (interval) times
-   ///
-   /// \code
-   /// const long long int  s = ...;
-   /// const long long int ms = ...;
-   /// const long long int us = ...;
-   /// \endcode
-   ///
-   /// Time in the rtos is expressed in some multiple of microseconds, but
-   /// use these constants to avoid knowledge of this detail.
-   //
-   //***************************************************************************
-
-   static const long long int us = 84;
-   static const long long int ms = ( 1000 * us );
-   static const long long int  s = ( 1000 * ms );
-
 
    //************************************************************************
    //
@@ -1105,7 +1081,7 @@ public:
       friend void hwlib::wait_us( int_fast32_t n );
       
       void sleep_us( int_fast32_t n ){
-         sleep_timer.start( n );
+         sleep_timer.set( n );
          wait( sleep_timer );       
       }
 

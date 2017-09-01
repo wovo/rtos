@@ -178,7 +178,7 @@ void rtos::task_base::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw(  6 ) << hwlib::right << cor.stack_used()
       << '/'
       << hwlib::setw(  5 ) << hwlib::left  << cor.stack_size
-      << hwlib::setw( 11 ) << hwlib::right << ( runtime_max / us )
+      << hwlib::setw( 11 ) << hwlib::right << runtime_max
       << hwlib::setw( 11 ) << hwlib::right << activations
       << "\n";
 #endif
@@ -383,7 +383,7 @@ void rtos::clock::print( hwlib::ostream & stream, bool header ) const {
       << hwlib::setw( 18 ) << hwlib::left  << waitable_name
       << hwlib::setw( 18 ) << hwlib::left  << TASK_NAME( t )
       << hwlib::setw(  2 ) << hwlib::right << nr_from_mask( mask )
-      << hwlib::setw( 12 ) << hwlib::right << ( period / us )
+      << hwlib::setw( 12 ) << hwlib::right << period 
       << hwlib::setw( 11 ) << hwlib::right << ticks
       << "\n";
 #endif
@@ -1022,8 +1022,10 @@ void rtos::beat( void ) {
       }
    }
    for( timer * t = timers; t != nullptr; t = t->next_timer ) {
-      if( ( t->time_to_wait > 0 )
-          && ( t->t->waitables.requested_waitables & t->mask ) ) {
+      if( 
+	     ( t->time_to_wait >= 0 )
+         && ( t->t->waitables.requested_waitables & t->mask ) 
+	  ) {
          return;
       }
    }
@@ -1043,7 +1045,7 @@ void rtos::run( void ) {
    (void)hwlib::now_us();
 
    // Show initial statistics
-   print( hwlib::cout );
+   // print( hwlib::cout );
 
 #if ( global_logging == 1 )
    hwlib::cout << "Scheduler starts" << "\n";
