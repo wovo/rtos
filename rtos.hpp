@@ -263,8 +263,8 @@ public:
    friend void hwlib::wait_us( int_fast32_t n );
 
    // rtos timing is in us
-   static const u_int64_t us = 1;
-   static const u_int64_t ms = 1'000;
+   static const uint64_t us = 1;
+   static const uint64_t ms = 1'000;
 
 private:
    class waitable_set;
