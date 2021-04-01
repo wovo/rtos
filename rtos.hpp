@@ -244,7 +244,7 @@ void task_trampoline();
 //
 //***************************************************************************
 //
-class rtos {
+class rtos : public hwlib::noncopyable {
 public:
    class task_base;
    class event;
@@ -436,7 +436,7 @@ public:
    //
    //************************************************************************
 public:
-   class waitable : public event {
+   class waitable : public hwlib::noncopyable, public event {
    public:
 
       /// clear the waitable
@@ -909,7 +909,7 @@ public:
    //************************************************************************
    
 public:
-   class task_base {
+   class task_base: public hwlib::noncopyable {
 
    private:
    
